@@ -108,7 +108,7 @@ data: <JSON do ranking, formato da seção 3>
 ```
 
 - A cada 15 segundos sem eventos na conexão, o servidor envia uma linha de comentário (`: heartbeat\n\n`) para manter a conexão viva, sem interferir na janela de throttling dos eventos `ranking`.
-- Quando a enquete é encerrada, o servidor envia um único evento `closed` com o ranking final (`status: "closed"`, `closedAt` e `updatedAt` iguais ao timestamp de encerramento) e em seguida encerra a conexão:
+- Quando a enquete é encerrada, o servidor envia um único evento `closed` com o ranking final (`status: "closed"`, `closedAt` e `updatedAt` iguais ao timestamp de encerramento) e em seguida encerra a conexão (em até 500 ms):
 
 ```
 id: <version>
@@ -117,7 +117,7 @@ data: <JSON do ranking final>
 
 ```
 
-- Se a enquete já estiver encerrada no momento da conexão, o servidor responde `200`, envia apenas o evento `closed` e encerra a conexão.
+- Se a enquete já estiver encerrada no momento da conexão, o servidor responde `200`, envia apenas o evento `closed` imediatamente e encerra a conexão.
 - `404` (`POLL_NOT_FOUND`) em JSON se a enquete não existir.
 
 ### 4.5 `POST /polls/:pollId/close`
@@ -157,7 +157,7 @@ Sem mudanças, nenhum evento `ranking` é emitido. Trata-se de throttling com bo
 
 **RN-09: Encerramento.** Uma enquete é encerrada manualmente (`POST /polls/:pollId/close`) ou automaticamente, ao fim de `durationSeconds` (tolerância de 500 ms). O encerramento é definitivo (não há reabertura) e idempotente (o `closedAt` não muda em chamadas repetidas). Todo voto que recebeu `202` antes do encerramento consta no ranking final, e todo voto processado depois é rejeitado com `409`. Nunca pode existir voto aceito que não conste no ranking final, nem voto contado após o encerramento, mesmo com votos e encerramento concorrentes.
 
-**RN-10: Encerramento dos streams.** Ao encerrar, cada cliente conectado recebe exatamente um evento `closed` com o ranking final, incluindo mudanças ainda retidas pelo throttling (em até 500 ms, sem esperar o intervalo), e o servidor encerra a conexão. Nenhum evento `ranking` é emitido depois. O evento `closed` não está sujeito ao throttling da RN-04.
+**RN-10: Encerramento dos streams.** Ao encerrar, cada cliente conectado recebe exatamente um evento `closed` com o ranking final, incluindo mudanças ainda retidas pelo throttling (em até 500 ms, sem esperar o intervalo), e o servidor encerra a conexão em até 500 ms. Nenhum evento `ranking` é emitido depois. O evento `closed` não está sujeito ao throttling da RN-04.
 
 **RN-11: Recursos após o encerramento.** O encerramento libera os temporizadores e as conexões da enquete, inclusive o temporizador do encerramento automático quando a enquete é encerrada manualmente antes do prazo. A enquete encerrada continua consultável por `GET /polls/:pollId` e pelo stream (somente o evento `closed`).
 
@@ -168,79 +168,11 @@ Sem mudanças, nenhum evento `ranking` é emitido. Trata-se de throttling com bo
 - **Memória:** os recursos por conexão SSE e por enquete são liberados quando deixam de ser necessários.
 - **Testes:** o projeto é entregue com testes automatizados executáveis por `npm test`.
 
-## 7. Critérios de aceitação
-
-Cada critério é verificável por uma suíte externa que usa apenas HTTP e SSE, sem acessar o código.
-
-**AC-01: Criar e consultar enquete.** Dado um corpo válido, quando `POST /polls`, então retorna `201` com `id`; e `GET /polls/:id` retorna `200` com todas as opções, cada uma com `0` votos, `version: 0`, `totalVotes: 0`, `status: "open"` e `closesAt: null`.
-
-**AC-02: Validação da enquete.** Dado um corpo com menos de 2 opções, opções repetidas, título vazio ou JSON malformado, quando `POST /polls`, então retorna `400` com `error: "INVALID_POLL"`.
-
-**AC-03: Voto aceito.** Dada uma enquete, quando chega um voto válido, então a resposta é `202` e `GET /polls/:id` já mostra a opção com `+1` voto e `version` incrementada.
-
-**AC-04: Ordenação.** Dadas opções com contagens diferentes, então o ranking vem em ordem decrescente de votos; em empate, na ordem de declaração das opções; e `position` começa em `1`.
-
-**AC-05: Voto duplicado.** Dado um voto já aceito, quando chega outro com o mesmo `voteId` na mesma enquete, então a resposta é `200` com `status: "duplicate"`, o ranking não muda e nenhum evento é emitido no stream.
-
-**AC-06: Duplicados concorrentes.** Quando 20 requisições simultâneas enviam o mesmo `voteId`, então exatamente uma recebe `202`, as demais recebem `200`, e o ranking soma apenas `1` voto.
-
-**AC-07: `voteId` entre enquetes.** Dado um `voteId` usado na enquete A, quando o mesmo `voteId` é enviado à enquete B, então ele é aceito (`202`).
-
-**AC-08: Limite por usuário.** Dado um usuário com `MAX_VOTES_PER_USER` votos aceitos na enquete, quando envia um voto com novo `voteId`, então recebe `409` com `error: "USER_VOTE_LIMIT"` e o ranking não muda. Outro usuário continua votando normalmente, e o mesmo usuário ainda pode votar em outra enquete.
-
-**AC-09: Duplicado não consome limite.** Dado um usuário com `MAX_VOTES_PER_USER - 1` votos, quando reenvia um `voteId` já aceito e depois envia um voto novo, então o voto novo é aceito.
-
-**AC-10: Erros de voto.** Quando o voto é enviado a enquete inexistente, recebe `404` (`POLL_NOT_FOUND`); com opção desconhecida, `422` (`UNKNOWN_OPTION`); com campos ausentes ou JSON malformado, `400` (`INVALID_VOTE`).
-
-**AC-11: Snapshot inicial.** Dada uma enquete com 5 votos, quando um cliente abre o stream, então recebe em até 500 ms um evento `ranking` com `totalVotes: 5`. Para uma enquete sem votos, recebe o snapshot com `totalVotes: 0`.
-
-**AC-12: Evento por mudança.** Dado um cliente conectado e sem atividade recente, quando um voto é aceito, então o cliente recebe um evento `ranking` em até 300 ms com o ranking atualizado.
-
-**AC-13: Throttling.** Dado um cliente conectado, quando 100 votos válidos são enviados em menos de 500 ms, então o cliente recebe no máximo 2 eventos `ranking` além do snapshot, o último com `totalVotes: 100` e `version: 100`, em até `RANKING_THROTTLE_MS + 500 ms` após o último voto.
-
-**AC-14: Intervalo entre eventos.** Durante votação contínua por 5 segundos, o intervalo entre dois eventos `ranking` consecutivos (excluindo o snapshot) é de pelo menos `RANKING_THROTTLE_MS - 100 ms`.
-
-**AC-15: Vários clientes.** Dados 3 clientes conectados à mesma enquete, quando votos são enviados, então os três recebem a mesma sequência de eventos (mesmos valores de `version` e `ranking`).
-
-**AC-16: Isolamento entre enquetes.** Dadas as enquetes A e B com clientes conectados em ambas, quando votos são enviados somente à A, então o stream da B não recebe eventos `ranking` e o `GET` da B permanece inalterado.
-
-**AC-17: Resiliência a requisições inválidas.** Dado um cliente conectado, quando 10 requisições inválidas (JSON malformado, campos ausentes, opção desconhecida) são enviadas e depois um voto válido, então o voto é aceito e o cliente continua recebendo eventos.
-
-**AC-18: Desconexão.** Dados 2 clientes conectados, quando um deles encerra a conexão e votos continuam chegando, então o outro continua recebendo eventos e o servidor segue aceitando votos.
-
-**AC-19: Consistência sob carga.** Quando 1.000 votos (todos com `voteId` e `userId` distintos) são enviados em paralelo a 5 enquetes, então todos recebem `202`, e para cada enquete a soma das contagens do `GET` é igual ao número de votos enviados a ela.
-
-**AC-20: Stream de enquete inexistente.** Quando `GET /polls/inexistente/stream`, então retorna `404` com `error: "POLL_NOT_FOUND"`.
-
-**AC-21: Health.** `GET /health` retorna `200` com `{ "status": "ok" }`.
-
-**AC-22: Encerramento manual.** Dada uma enquete aberta com votos, quando `POST /polls/:id/close`, então retorna `200` com `status: "closed"`, `closedAt` e o ranking final; e `GET /polls/:id` retorna `status: "closed"` com as mesmas contagens.
-
-**AC-23: Encerramento idempotente.** Dada uma enquete já encerrada, quando `POST /polls/:id/close` é chamado de novo, então retorna 200 com o mesmo `closedAt` da primeira chamada.
-
-**AC-24: Voto após o encerramento.** Dada uma enquete encerrada, quando chega qualquer voto (inclusive com `voteId` já aceito ou de usuário no limite), então a resposta é `409` com `error: "POLL_CLOSED"` e o ranking não muda.
-
-**AC-25: Evento final no stream.** Dados 2 clientes conectados, quando a enquete é encerrada, então cada um recebe exatamente um evento `closed` com o ranking final (`status: "closed"`, `totalVotes` igual ao do `GET`) e o servidor encerra a conexão em até 500 ms. Nenhum evento `ranking` chega depois do `closed`.
-
-**AC-26: Mudanças retidas pelo throttling.** Dado um cliente conectado com mudanças ainda retidas pelo throttling, quando a enquete é encerrada, então o evento `closed` chega em até 500 ms, sem esperar o intervalo, já com o estado mais recente.
-
-**AC-27: Conexão a enquete encerrada.** Dada uma enquete encerrada, quando um cliente abre o stream, então recebe `200` com um único evento `closed` imediato e a conexão é encerrada pelo servidor.
-
-**AC-28: Encerramento automático.** Dada uma enquete criada com `durationSeconds: 2`, então a resposta de criação traz `closesAt` cerca de 2 s no futuro e `status: "open"`; passados 2 s (tolerância de 500 ms), `GET` retorna `status: "closed"`, os clientes conectados recebem `closed` e novos votos recebem 409.
-
-**AC-29: Validação de `durationSeconds`.** Quando `POST /polls` recebe `durationSeconds` igual a `0`, negativo, maior que `86400` ou não inteiro, então retorna `400` com `error: "INVALID_POLL"`.
-
-**AC-30: Encerramento concorrente a votos.** Quando 200 votos são enviados em paralelo enquanto `POST /polls/:id/close` é chamado, então cada voto recebe 202 ou 409; o `totalVotes` do ranking final é igual ao número de respostas 202; e nenhum voto é aceito depois do encerramento.
-
-**AC-31: Isolamento do encerramento.** Dadas as enquetes A e B abertas, quando a A é encerrada, então a B continua aceitando votos e seu stream continua emitindo eventos `ranking`.
-
-**AC-32: Encerrar enquete inexistente.** Quando `POST /polls/inexistente/close`, então retorna `404` com `error: "POLL_NOT_FOUND"`.
-
-## 8. Fora do escopo
+## 7. Fora do escopo
 
 Autenticação e autorização (inclusive controle de quem pode encerrar uma enquete: qualquer cliente pode), persistência em disco ou banco, múltiplas instâncias do servidor, reconexão com `Last-Event-ID` e reenvio de eventos perdidos, reabertura de enquetes, remoção ou expiração de enquetes encerradas da memória, interface gráfica.
 
-## 9. Entregáveis
+## 8. Entregáveis
 
 - Código-fonte em TypeScript.
 - Testes automatizados executáveis por `npm test`.
