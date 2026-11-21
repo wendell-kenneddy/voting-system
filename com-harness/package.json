@@ -1,0 +1,41 @@
+{
+  "name": "voting-leaderboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "npm run build && node dist/main.js",
+    "test": "vitest run --configLoader=runner",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test --max-warnings 0",
+    "lint:arch": "depcruise src --validate .dependency-cruiser.cjs --output-type err-long",
+    "lint:openapi": "vitest run --configLoader=runner test/http/openapi.test.ts",
+    "validate": "npm run typecheck && npm run lint && npm run lint:arch && npm run lint:openapi && npm test"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "rxjs": "7.8.2"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "12.1.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.0",
+    "@types/supertest": "^6.0.3",
+    "@typescript-eslint/eslint-plugin": "7.18.0",
+    "@typescript-eslint/parser": "7.18.0",
+    "dependency-cruiser": "16.10.4",
+    "eslint": "8.57.1",
+    "eslint-plugin-rxjs": "5.0.3",
+    "supertest": "^7.1.4",
+    "typescript": "5.5.4",
+    "vitest": "4.1.12"
+  },
+  "overrides": {
+    "vite": "6.4.6",
+    "@typescript-eslint/typescript-estree@7.18.0": {
+      "minimatch": "11.0.1"
+    }
+  }
+}

@@ -1,0 +1,307 @@
+openapi: 3.1.0
+info:
+  title: Leaderboard de votação ao vivo
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /polls:
+    post:
+      operationId: createPoll
+      summary: Criar uma enquete
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PollInput' }
+      responses:
+        '201':
+          description: Enquete criada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Poll' }
+        '400':
+          description: Corpo inválido ou JSON malformado
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - properties: { error: { const: INVALID_POLL } }
+              example: { error: INVALID_POLL, message: Corpo da enquete inválido. }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /polls/{pollId}:
+    parameters:
+      - $ref: '#/components/parameters/PollId'
+    get:
+      operationId: getPoll
+      summary: Consultar o ranking atual da enquete
+      responses:
+        '200':
+          description: Ranking com todos os votos aceitos e os metadados da enquete
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PollView' }
+        '404': { $ref: '#/components/responses/PollNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /polls/{pollId}/votes:
+    parameters:
+      - $ref: '#/components/parameters/PollId'
+    post:
+      operationId: registerVote
+      summary: Registrar um voto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Vote' }
+      responses:
+        '202':
+          description: Voto aceito
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/VoteReceipt'
+                  - properties: { status: { const: accepted } }
+        '200':
+          description: O identificador do voto já foi aceito na enquete
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/VoteReceipt'
+                  - properties: { status: { const: duplicate } }
+        '400':
+          description: Corpo inválido ou JSON malformado em enquete existente
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - properties: { error: { const: INVALID_VOTE } }
+              example: { error: INVALID_VOTE, message: Corpo do voto inválido. }
+        '404': { $ref: '#/components/responses/PollNotFound' }
+        '409':
+          description: POLL_CLOSED indica fechamento. USER_VOTE_LIMIT indica que o usuário atingiu seu limite nesta enquete.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - properties: { error: { enum: [POLL_CLOSED, USER_VOTE_LIMIT] } }
+              examples:
+                closed:
+                  value: { error: POLL_CLOSED, message: Enquete encerrada. }
+                voteLimit:
+                  value: { error: USER_VOTE_LIMIT, message: Limite de votos do usuário atingido. }
+        '422':
+          description: A opção indicada não pertence à enquete
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Error'
+                  - properties: { error: { const: UNKNOWN_OPTION } }
+              example: { error: UNKNOWN_OPTION, message: A opção não pertence à enquete. }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /polls/{pollId}/stream:
+    parameters:
+      - $ref: '#/components/parameters/PollId'
+    get:
+      operationId: streamRanking
+      summary: Acompanhar o ranking via SSE
+      responses:
+        '200':
+          description: |
+            Cada frame de dados contém linhas `id: <version>`, `event: <tipo>`
+            e `data: <JSON>`, seguidas de uma linha em branco.
+            O evento `ranking` entrega um snapshot ao conectar e atualizações
+            sujeitas à cadência da enquete. Seu JSON segue Ranking com status
+            open e sem closedAt. O comentário `: heartbeat` seguido de uma linha
+            em branco é enviado a cada 15 segundos de ociosidade.
+            O evento `closed` entrega ClosedRanking imediatamente e encerra a
+            resposta. Em uma enquete já encerrada, esse é o único evento.
+          content:
+            text/event-stream:
+              schema: { type: string }
+              example: |
+                id: 0
+                event: ranking
+                data: {"pollId":"p1","status":"open","version":0,"totalVotes":0,"ranking":[{"position":1,"option":"A","votes":0},{"position":2,"option":"B","votes":0}],"updatedAt":"2026-11-20T15:00:00.000Z"}
+
+        '404': { $ref: '#/components/responses/PollNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /polls/{pollId}/close:
+    parameters:
+      - $ref: '#/components/parameters/PollId'
+    post:
+      operationId: closePoll
+      summary: Encerrar uma enquete
+      responses:
+        '200':
+          description: Ranking final. Repetições mantêm o horário do primeiro encerramento.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClosedRanking' }
+        '404': { $ref: '#/components/responses/PollNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /health:
+    get:
+      operationId: getHealth
+      summary: Consultar a saúde do servidor
+      responses:
+        '200':
+          description: Servidor disponível
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, const: ok }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+components:
+  parameters:
+    PollId:
+      in: path
+      name: pollId
+      required: true
+      schema: { type: string }
+  responses:
+    PollNotFound:
+      description: Enquete inexistente
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - properties: { error: { const: POLL_NOT_FOUND } }
+          example: { error: POLL_NOT_FOUND, message: Enquete inexistente. }
+    InternalError:
+      description: Falha inesperada antes do envio da resposta
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - properties: { error: { const: INTERNAL_ERROR } }
+          example: { error: INTERNAL_ERROR, message: Falha interna do servidor. }
+  schemas:
+    Title:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: '\S'
+    Option:
+      type: string
+      minLength: 1
+      maxLength: 100
+      pattern: '\S'
+    Identifier:
+      type: string
+      minLength: 1
+      maxLength: 100
+      pattern: '\S'
+    NullableTimestamp:
+      type: [string, 'null']
+      format: date-time
+    PollFields:
+      type: object
+      required: [title, options]
+      properties:
+        title: { $ref: '#/components/schemas/Title' }
+        options:
+          type: array
+          items: { $ref: '#/components/schemas/Option' }
+          minItems: 2
+          maxItems: 10
+          uniqueItems: true
+    PollInput:
+      allOf:
+        - $ref: '#/components/schemas/PollFields'
+        - properties:
+            durationSeconds:
+              type: [integer, 'null']
+              minimum: 1
+              maximum: 86400
+              description: Quando omitido ou nulo, a enquete fecha por chamada manual.
+    Poll:
+      allOf:
+        - $ref: '#/components/schemas/PollFields'
+        - required: [id, status, closesAt]
+          properties:
+            id: { type: string }
+            status: { type: string, enum: [open] }
+            closesAt: { $ref: '#/components/schemas/NullableTimestamp' }
+    RankingEntry:
+      type: object
+      required: [position, option, votes]
+      properties:
+        position: { type: integer, minimum: 1 }
+        option: { $ref: '#/components/schemas/Option' }
+        votes: { type: integer, minimum: 0 }
+    Ranking:
+      type: object
+      required: [pollId, status, version, totalVotes, ranking, updatedAt]
+      properties:
+        pollId: { type: string }
+        status: { type: string, enum: [open, closed] }
+        version: { type: integer, minimum: 0 }
+        totalVotes: { type: integer, minimum: 0 }
+        ranking:
+          type: array
+          items: { $ref: '#/components/schemas/RankingEntry' }
+          minItems: 2
+          maxItems: 10
+        updatedAt: { type: string, format: date-time }
+    ClosedRanking:
+      allOf:
+        - $ref: '#/components/schemas/Ranking'
+        - required: [closedAt]
+          properties:
+            status: { const: closed }
+            closedAt:
+              type: string
+              format: date-time
+              description: Mesmo valor de updatedAt.
+    PollView:
+      allOf:
+        - $ref: '#/components/schemas/Ranking'
+        - required: [title, closesAt, closedAt]
+          properties:
+            title: { $ref: '#/components/schemas/Title' }
+            closesAt: { $ref: '#/components/schemas/NullableTimestamp' }
+            closedAt: { $ref: '#/components/schemas/NullableTimestamp' }
+          if:
+            properties: { status: { const: open } }
+          then:
+            properties: { closedAt: { type: 'null' } }
+          else:
+            properties: { closedAt: { type: string } }
+    Vote:
+      type: object
+      required: [voteId, userId, option]
+      properties:
+        voteId: { $ref: '#/components/schemas/Identifier' }
+        userId: { $ref: '#/components/schemas/Identifier' }
+        option:
+          type: string
+          minLength: 1
+          pattern: '\S'
+          description: Opção exata de uma enquete existente.
+    VoteReceipt:
+      type: object
+      required: [status, voteId]
+      properties:
+        status: { type: string, enum: [accepted, duplicate] }
+        voteId: { $ref: '#/components/schemas/Identifier' }
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum: [INVALID_POLL, INVALID_VOTE, POLL_NOT_FOUND, POLL_CLOSED, USER_VOTE_LIMIT, UNKNOWN_OPTION, INTERNAL_ERROR]
+        message: { type: string, minLength: 1 }
