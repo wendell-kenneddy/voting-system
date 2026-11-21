@@ -1,0 +1,21 @@
+{
+  "name": "live-voting-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "In-memory live poll leaderboard with shared RxJS streams",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck:test": "tsc -p tsconfig.test.json",
+    "start": "npm run build && node dist/server.js",
+    "test": "npm run build && npm run typecheck:test && vitest run"
+  },
+  "dependencies": { "express": "^5.2.1", "rxjs": "7.8.2" },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.0",
+    "typescript": "~5.9.3",
+    "vitest": "~4.1.12",
+    "vite": "~6.4.6"
+  }
+}
