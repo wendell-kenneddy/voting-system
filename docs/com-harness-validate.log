@@ -1,0 +1,45 @@
+
+> voting-leaderboard@1.0.0 validate
+> npm run typecheck && npm run lint && npm run lint:arch && npm run lint:openapi && npm test
+
+
+> voting-leaderboard@1.0.0 typecheck
+> tsc --noEmit
+
+
+> voting-leaderboard@1.0.0 lint
+> eslint src test --max-warnings 0
+
+
+> voting-leaderboard@1.0.0 lint:arch
+> depcruise src --validate .dependency-cruiser.cjs --output-type err-long
+
+
+✔ no dependency violations found (17 modules, 37 dependencies cruised)
+
+
+> voting-leaderboard@1.0.0 lint:openapi
+> vitest run --configLoader=runner test/http/openapi.test.ts
+
+
+ RUN  v4.1.12 /home/shaka/projects/voting-system/com-harness
+
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  17:13:40
+   Duration  722ms (transform 110ms, setup 0ms, import 386ms, tests 140ms, environment 0ms)
+
+
+> voting-leaderboard@1.0.0 test
+> vitest run --configLoader=runner
+
+
+ RUN  v4.1.12 /home/shaka/projects/voting-system/com-harness
+
+
+ Test Files  10 passed (10)
+      Tests  105 passed (105)
+   Start at  17:13:41
+   Duration  3.00s (transform 739ms, setup 0ms, import 3.48s, tests 4.75s, environment 2ms)
+

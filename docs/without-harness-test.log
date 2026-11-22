@@ -1,0 +1,21 @@
+
+> live-voting-api@1.0.0 test
+> npm run build && npm run typecheck:test && vitest run
+
+
+> live-voting-api@1.0.0 build
+> tsc -p tsconfig.json
+
+
+> live-voting-api@1.0.0 typecheck:test
+> tsc -p tsconfig.test.json
+
+
+ RUN  v4.1.12 /home/shaka/projects/voting-system/without-harness
+
+
+ Test Files  9 passed (9)
+      Tests  124 passed (124)
+   Start at  17:14:07
+   Duration  25.41s (transform 201ms, setup 0ms, import 1.53s, tests 22.12s, environment 1ms)
+

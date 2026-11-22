@@ -1,0 +1,55 @@
+{
+  "node": "v22.22.1",
+  "fanout": [
+    {
+      "project": "com-harness",
+      "clients": 1,
+      "notificationsInsideVote": 1,
+      "notificationsAfterVote": 0
+    },
+    {
+      "project": "com-harness",
+      "clients": 10,
+      "notificationsInsideVote": 10,
+      "notificationsAfterVote": 0
+    },
+    {
+      "project": "com-harness",
+      "clients": 100,
+      "notificationsInsideVote": 100,
+      "notificationsAfterVote": 0
+    },
+    {
+      "project": "without-harness",
+      "clients": 1,
+      "notificationsInsideVote": 0,
+      "notificationsAfterVote": 1
+    },
+    {
+      "project": "without-harness",
+      "clients": 10,
+      "notificationsInsideVote": 0,
+      "notificationsAfterVote": 10
+    },
+    {
+      "project": "without-harness",
+      "clients": 100,
+      "notificationsInsideVote": 0,
+      "notificationsAfterVote": 100
+    }
+  ],
+  "shutdown": [
+    {
+      "project": "com-harness",
+      "statusAfterDispose": 201,
+      "createdPollAfterDispose": true,
+      "error": null
+    },
+    {
+      "project": "without-harness",
+      "statusAfterDispose": 503,
+      "createdPollAfterDispose": false,
+      "error": "SERVICE_UNAVAILABLE"
+    }
+  ]
+}

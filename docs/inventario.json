@@ -1,0 +1,24 @@
+{
+  "com-harness": {
+    "src": {
+      "typescriptFiles": 13,
+      "linesIncludingCommentsAndBlanks": 679
+    },
+    "test": {
+      "typescriptFiles": 11,
+      "linesIncludingCommentsAndBlanks": 931
+    },
+    "packageLockBytes": 200733
+  },
+  "without-harness": {
+    "src": {
+      "typescriptFiles": 13,
+      "linesIncludingCommentsAndBlanks": 476
+    },
+    "test": {
+      "typescriptFiles": 12,
+      "linesIncludingCommentsAndBlanks": 938
+    },
+    "packageLockBytes": 83746
+  }
+}
