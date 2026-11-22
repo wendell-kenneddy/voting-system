@@ -52,7 +52,7 @@ A estrutura separa `domain`, `application` e `infra/http`, com composição em `
 
 Há boa correspondência entre estrutura, regras documentadas e verificações executáveis. O custo é uma implementação mais extensa e um scheduler Node próprio, que precisa manter corretamente cancelamento, reagendamento, atrasos longos e execução síncrona para atraso zero. A suíte inclui testes desse adaptador, mas sua manutenção é uma responsabilidade adicional.
 
-Evidências: [AGENTS.md](../com-harness/AGENTS.md), [regras de dependência](../com-harness/.dependency-cruiser.cjs), [ESLint](../com-harness/eslint.config.js), [portas](../com-harness/src/application/ports.ts) e [composição](../com-harness/src/main.ts).
+Evidências: [AGENTS.md](../with-harness/AGENTS.md), [regras de dependência](../with-harness/.dependency-cruiser.cjs), [ESLint](../with-harness/eslint.config.js), [portas](../with-harness/src/application/ports.ts) e [composição](../with-harness/src/main.ts).
 
 ### Implementação sem harness
 
@@ -121,7 +121,7 @@ A suíte com harness distingue testes puros de domínio, marbles da aplicação 
 
 A suíte sem harness cobre mais situações operacionais: corpo que termina de chegar durante desligamento, shutdown idempotente, repetição de desconexões, escrita de cliente com falha, contagem explícita de timers e assinaturas, heartbeat real e carga observada por SSE. Seu teste de carga verifica a convergência dos streams, os rankings finais e a igualdade entre fechamento, GET e evento final.
 
-Evidências: [marbles com harness](../com-harness/test/marble/pollRuntime.test.ts), [SSE com harness](../com-harness/test/http/sse.test.ts), [OpenAPI](../com-harness/test/http/openapi.test.ts), [ciclo de vida sem harness](../without-harness/test/lifecycle.test.ts), [SSE sem harness](../without-harness/test/sse.test.ts) e [carga sem harness](../without-harness/test/load.test.ts).
+Evidências: [marbles com harness](../with-harness/test/marble/pollRuntime.test.ts), [SSE com harness](../with-harness/test/http/sse.test.ts), [OpenAPI](../with-harness/test/http/openapi.test.ts), [ciclo de vida sem harness](../without-harness/test/lifecycle.test.ts), [SSE sem harness](../without-harness/test/sse.test.ts) e [carga sem harness](../without-harness/test/load.test.ts).
 
 ### Limites das evidências
 
@@ -139,7 +139,7 @@ Não foram produzidas métricas de cobertura de linhas ou branches, testes de mu
 
 **Classificação:** não conformidade com a cláusula de custo da RN-05.
 
-Em [PollRuntime.vote](../com-harness/src/application/pollRuntime.ts), `stateSubject.next()` é chamado antes do retorno do comando. O primeiro evento passa imediatamente pela borda inicial do throttle e aciona os assinantes de forma síncrona. O adaptador [SSE](../com-harness/src/infra/http/sse.ts) escreve a resposta dentro desse callback.
+Em [PollRuntime.vote](../with-harness/src/application/pollRuntime.ts), `stateSubject.next()` é chamado antes do retorno do comando. O primeiro evento passa imediatamente pela borda inicial do throttle e aciona os assinantes de forma síncrona. O adaptador [SSE](../with-harness/src/infra/http/sse.ts) escreve a resposta dentro desse callback.
 
 A reprodução usa um voto aceito e assinantes do fluxo público; exclui o snapshot inicial da contagem. Não mede tempo de CPU: conta quantos callbacks são executados antes do retorno do voto.
 
@@ -236,7 +236,7 @@ O trabalho entrega as duas versões e os mecanismos centrais pedidos. A compara�
 Na raiz do repositório, com Node.js 20 ou superior e dependências instaladas:
 
 ```bash
-cd com-harness
+cd with-harness
 npm run validate
 npm run build
 cd ../without-harness

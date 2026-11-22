@@ -1,5 +1,5 @@
 // Diagnóstico da revisão. Não altera as implementações nem integra suas suítes.
-// Pré-requisito: npm run build em com-harness/ e without-harness/.
+// Pré-requisito: npm run build em with-harness/ e without-harness/.
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
 const { createServer, request } = require('node:http');
@@ -7,9 +7,9 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const load = (project, file) => require(path.join(root, project, file));
-const { PollRegistry } = load('com-harness', 'dist/application/pollRegistry.js');
-const { systemClock, nodeScheduler } = load('com-harness', 'dist/main.js');
-const { createApp: harnessApp } = load('com-harness', 'dist/infra/http/app.js');
+const { PollRegistry } = load('with-harness', 'dist/application/pollRegistry.js');
+const { systemClock, nodeScheduler } = load('with-harness', 'dist/main.js');
+const { createApp: harnessApp } = load('with-harness', 'dist/infra/http/app.js');
 const { createApp: withoutApp } = load('without-harness', 'dist/app.js');
 const { VirtualTimeScheduler } = load('without-harness', 'node_modules/rxjs');
 const config = { port: 0, maxVotesPerUser: 3, rankingThrottleMs: 1000 };

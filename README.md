@@ -9,6 +9,6 @@ Integrantes:
 
 O projeto compara duas implementações de uma API de votação reativa com TypeScript, Express, RxJS e SSE. A especificação comum está em [docs/SPECS.md](docs/SPECS.md).
 
-- [com-harness](com-harness/) contém instruções para agentes, regras de arquitetura, lint, testes e validação integrada.
+- [with-harness](with-harness/) contém instruções para agentes, regras de arquitetura, lint, testes e validação integrada.
 - [without-harness](without-harness/) contém a implementação e os testes sem o mesmo conjunto de verificações arquiteturais.
 - [Relatório final](docs/RELATORIO_FINAL.md) apresenta a comparação, os resultados, os limites das evidências e os comandos de reprodução.
