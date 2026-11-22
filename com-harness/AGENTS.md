@@ -2,7 +2,7 @@
 
 API backend (Node 20+, TypeScript, RxJS, Express) que recebe votos em várias enquetes e transmite o ranking em tempo real via SSE. Estado 100% em memória.
 
-**Fonte da verdade funcional:** `SPECS.md` (raiz do repositório). Leia-a inteira antes de escrever código. Este arquivo define *como* trabalhar; a spec define *o quê*. Se houver conflito entre os dois, siga a spec e avise (seção 10).
+**Fonte da verdade funcional:** `docs/SPECS.md` na raiz do repositório (caminho relativo a este arquivo: `../docs/SPECS.md`). Leia-a inteira antes de escrever código. Este arquivo define *como* trabalhar; a spec define *o quê*. Se houver conflito entre os dois, siga a spec e avise (seção 10).
 
 ---
 
